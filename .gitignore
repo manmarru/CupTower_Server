@@ -1,0 +1,49 @@
+# ========== VSCode ==========
+.vscode/
+.history/
+
+# ========== 빌드 결과물 ==========
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.cache
+*.pdb
+*.tmp
+*.dbmdl
+*.bak
+*.backup
+*.log
+
+# ========== NuGet ==========
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
+
+# ========== Rider / ReSharper (혹시 쓸 경우) ==========
+.idea/
+_ReSharper*/
+*.DotSettings.user
+*.sln.iml
+
+# ========== OS 불필요 파일 ==========
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ========== 테스트 관련 ==========
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# ========== 환경 설정 ==========
+*.env
+*.local.json
