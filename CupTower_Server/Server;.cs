@@ -24,7 +24,7 @@ struct PACKET
 
 class Server
 {
-    public const int MAXUSER = 3;
+    public const int MAXUSER = 1;
     public const int HEADERSIZE_DEFAULT = 8;
     public const int DATASIZE_GAMEACT = 8;
     public const int DATASIZE_NODATA = 0;
@@ -42,18 +42,24 @@ class Server
         m_Server.Bind(new IPEndPoint(IPAddress.Any, 25565));
         m_Server.Listen(10);
 
+        byte[] Temp = new byte[4];
         for (m_CurUser = 0; m_CurUser < MAXUSER; ++m_CurUser)
         {
             m_Clients[m_CurUser] = m_Server.Accept();
-            m_Clients[m_CurUser].Send(BitConverter.GetBytes(m_CurUser), 4, SocketFlags.None);
+            BinaryPrimitives.WriteInt32BigEndian(Temp, m_CurUser);
+            m_Clients[m_CurUser].Send(Temp, 4, SocketFlags.None);
             System.Console.WriteLine($"User {m_CurUser} Connected");
         }
 
+        System.Console.WriteLine("All Users Connected");
+        BinaryPrimitives.WriteInt32BigEndian(Temp, 999);
         for (int i = 0; i < MAXUSER; ++i)
         {
             UserLock[i] = new object();
-            m_Clients[i].Send(BitConverter.GetBytes(999), 4, SocketFlags.None);
+            m_Clients[i].Send(Temp, 4, SocketFlags.None);
         }
+
+        Initialize_Table();
     }
 
     public void Recv_N_Send(int UserNum)
@@ -113,7 +119,7 @@ class Server
                         break;
                     }
                 default:
-                    System.Console.WriteLine("데이터 이상!");
+                    System.Console.WriteLine("DATATYPE EXCEPTION!");
                     return;
             }
         }
@@ -140,10 +146,11 @@ class Server
         BinaryPrimitives.WriteInt32BigEndian(Sendbuffer.AsSpan(4, 4), packet.DataSize);
         Buffer.BlockCopy(packet.Data, 0, Sendbuffer, HEADERSIZE_DEFAULT, packet.DataSize);
 
+        int SendSize = 0;
+        int TotalSize = HEADERSIZE_DEFAULT + packet.DataSize;
+
         lock (UserLock[UserNum])
         {
-            int SendSize = 0;
-            int TotalSize = HEADERSIZE_DEFAULT + packet.DataSize;
             while (SendSize < TotalSize)
             {
                 int Send = m_Clients[UserNum].Send(Sendbuffer, SendSize, TotalSize - SendSize, SocketFlags.None);
@@ -216,8 +223,7 @@ class Server
     private void Initialize_Table()
     {
         List<int> Table = new List<int>();
-        List<int> User = new List<int>(MAXUSER);
-        for (int i = 0; i < MAXUSER; ++i)
+        for (int i = 0; i < 12; ++i)
         {
             Table.Add(0);
             Table.Add(1);
@@ -225,14 +231,14 @@ class Server
         }
 
         Random rand = new Random();
-        int Remain = 27;
+        int Remain = 36;
         int Index;
         PACKET SendPacket = new PACKET();
         SendPacket.Data = new byte[12];
         for (int player = 0; player < MAXUSER; ++player)
         {
-            int[] PlayerInfo = new int[9];
-            for (int i = 0; i < 9; ++i)
+            int[] PlayerInfo = new int[3];
+            for (int i = 0; i < 12; ++i)
             {
                 Index = rand.Next(0, Remain); // [0, Remain - 1]
                 ++PlayerInfo[Table[Index]];
@@ -249,7 +255,7 @@ class Server
         }
     }
     
-    
+
 }
 
 
