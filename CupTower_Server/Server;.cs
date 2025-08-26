@@ -11,7 +11,8 @@ enum DATATYPE
     DATATYPE_GAME,
     DATATYPE_TURN,
     DATATYPE_ENDGAME,
-    DATATYPE_GAMESET
+    DATATYPE_GAMESET,
+    DATATYPE_USERINFO
 }
 
 struct PACKET
@@ -30,7 +31,6 @@ class Server
 
     Socket m_Server;
     Socket[] m_Clients = new Socket[MAXUSER];
-    CBoard m_Board = new CBoard(MAXUSER);
 
     private object[] UserLock = new object[MAXUSER];
     private int m_CurUser = 0;
@@ -133,6 +133,32 @@ class Server
         return true;
     }
 
+    private bool SendMessage(int UserNum, PACKET packet)
+    {
+        byte[] Sendbuffer = new byte[HEADERSIZE_DEFAULT + packet.DataSize];
+        BinaryPrimitives.WriteInt32BigEndian(Sendbuffer.AsSpan(0, 4), (int)packet.Type);
+        BinaryPrimitives.WriteInt32BigEndian(Sendbuffer.AsSpan(4, 4), packet.DataSize);
+        Buffer.BlockCopy(packet.Data, 0, Sendbuffer, HEADERSIZE_DEFAULT, packet.DataSize);
+
+        lock (UserLock[UserNum])
+        {
+            int SendSize = 0;
+            int TotalSize = HEADERSIZE_DEFAULT + packet.DataSize;
+            while (SendSize < TotalSize)
+            {
+                int Send = m_Clients[UserNum].Send(Sendbuffer, SendSize, TotalSize - SendSize, SocketFlags.None);
+                if (Send <= 0)
+                {
+                    System.Console.WriteLine("DisConnected While Calling SendMessage");
+                    return false;
+                }
+                SendSize += Send;
+            }
+        }
+
+        return true;
+    }
+
     private void BroadCasting(PACKET Packet)
     {
         byte[] Sendbuffer = new byte[Packet.DataSize + HEADERSIZE_DEFAULT];
@@ -187,6 +213,43 @@ class Server
         BroadCasting(SendPacket);
     }
 
+    private void Initialize_Table()
+    {
+        List<int> Table = new List<int>();
+        List<int> User = new List<int>(MAXUSER);
+        for (int i = 0; i < MAXUSER; ++i)
+        {
+            Table.Add(0);
+            Table.Add(1);
+            Table.Add(2);
+        }
+
+        Random rand = new Random();
+        int Remain = 27;
+        int Index;
+        PACKET SendPacket = new PACKET();
+        SendPacket.Data = new byte[12];
+        for (int player = 0; player < MAXUSER; ++player)
+        {
+            int[] PlayerInfo = new int[9];
+            for (int i = 0; i < 9; ++i)
+            {
+                Index = rand.Next(0, Remain); // [0, Remain - 1]
+                ++PlayerInfo[Table[Index]];
+                Table.RemoveAt(Index);
+                --Remain;
+            }
+
+            SendPacket.Type = DATATYPE.DATATYPE_USERINFO;
+            SendPacket.DataSize = 12;
+            BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data.AsSpan(0, 4), PlayerInfo[0]);
+            BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data.AsSpan(4, 4), PlayerInfo[1]);
+            BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data.AsSpan(8, 4), PlayerInfo[2]);
+            SendMessage(player, SendPacket);
+        }
+    }
+    
+    
 }
 
 
