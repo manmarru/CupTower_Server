@@ -14,6 +14,7 @@ enum DATATYPE
     DATATYPE_GAMESET,
     DATATYPE_USERINFO
 }
+enum DATA { DATA_UNACTABLE, DATA_SKIPTURN };
 
 struct PACKET
 {
@@ -28,6 +29,7 @@ class Server
     public const int HEADERSIZE_DEFAULT = 8;
     public const int DATASIZE_GAMEACT = 8;
     public const int DATASIZE_NODATA = 0;
+    public const int ROUNDSIZE = 2;
 
     Socket m_Server;
     Socket[] m_Clients = new Socket[MAXUSER];
@@ -35,6 +37,10 @@ class Server
     private object[] UserLock = new object[MAXUSER];
     private int m_CurUser = 0;
     private int m_Turn = 0;
+    private int m_SkipCount = 1;
+    private int m_Round = 0;
+    private int[] m_UserScore = new int[MAXUSER];
+    private int[] m_WinnerScore = new int[MAXUSER];
 
     public void Initialize()
     {
@@ -55,8 +61,12 @@ class Server
         BinaryPrimitives.WriteInt32BigEndian(Temp, 999);
         for (int i = 0; i < MAXUSER; ++i)
         {
+            m_UserScore[i] = 0;
+            m_WinnerScore[i] = 0;
+
             UserLock[i] = new object();
             m_Clients[i].Send(Temp, 4, SocketFlags.None);
+
         }
 
         Initialize_Table();
@@ -98,9 +108,11 @@ class Server
                     }
                 case DATATYPE.DATATYPE_GAME:
                     {
+                        m_SkipCount = 0;
+                        ++m_UserScore[UserNum];
                         int CupPos = BinaryPrimitives.ReadInt32BigEndian(RecvBuffer);
                         int GameAct = BinaryPrimitives.ReadInt32BigEndian(RecvBuffer.AsSpan(4, 4));
-                        System.Console.WriteLine($"CupPos : {CupPos}\nGameAct : {GameAct}");
+                        System.Console.WriteLine($"             CupPos : {CupPos}\nGameAct : {GameAct}");
                         SendPacket.Data = new byte[SendPacket.DataSize];
                         BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data.AsSpan(0, 4), CupPos);
                         BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data.AsSpan(4, 4), GameAct);
@@ -110,13 +122,41 @@ class Server
                     }
                 case DATATYPE.DATATYPE_TURN:
                     {
-                        NextTurn();
+                        int Msg = BinaryPrimitives.ReadInt32BigEndian(RecvBuffer);
+                        if (Msg == (int)DATA.DATA_SKIPTURN) // 그냥 턴종누른거면
+                        {
+                            System.Console.WriteLine("skip Button");
+                            NextTurn();
+                            break;
+                        }
+                        System.Console.WriteLine("Unactable");
+                        ++m_SkipCount;
+                        if (m_SkipCount == MAXUSER)
+                        {
+                            ++m_Round;
+                            System.Console.WriteLine($"         Round{m_Round} GameSet!");
+                            if (m_Round == ROUNDSIZE)
+                            {
+                                System.Console.WriteLine("          EndGame!");
+                                SendPacket.Type = DATATYPE.DATATYPE_ENDGAME;
+                                SendPacket.DataSize = DATASIZE_NODATA;
+                                BroadCasting(SendPacket);
+                            }
+                            else
+                            {
+                                Initialize_Table();
+                                m_Turn = 9999;
+                            }
+                            m_SkipCount = 0;
+                            NextTurn();
+                        }
                         break;
                     }
-                case DATATYPE.DATATYPE_ENDGAME:
+                case DATATYPE.DATATYPE_ENDGAME: // 받고 꺼야되는거 맞다.
                     {
-                        //나머지 유저들에게 종료 알림
-                        break;
+                        System.Console.WriteLine($"         User{UserNum} Shutdown");
+                        m_Clients[UserNum].Close();
+                        return;
                     }
                 default:
                     System.Console.WriteLine("DATATYPE EXCEPTION!");
@@ -197,10 +237,9 @@ class Server
 
     public void Release()
     {
-        System.Console.WriteLine("Release Start");
+        System.Console.WriteLine("Release Called");
         for (int i = 0; i < MAXUSER; ++i)
         {
-            m_Clients[i].Shutdown(SocketShutdown.Both);
             m_Clients[i].Close();
         }
         m_Server.Close();
@@ -214,7 +253,7 @@ class Server
         m_Turn = (m_Turn + 1) % MAXUSER;
         System.Console.WriteLine($"Player {m_Turn} Turn");
         SendPacket.Type = DATATYPE.DATATYPE_TURN;
-        SendPacket.DataSize = HEADERSIZE_DEFAULT + 4;
+        SendPacket.DataSize = 4;
         SendPacket.Data = new byte[SendPacket.DataSize];
         BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data, m_Turn);
         BroadCasting(SendPacket);
@@ -237,6 +276,8 @@ class Server
         SendPacket.Data = new byte[12];
         for (int player = 0; player < MAXUSER; ++player)
         {
+            m_UserScore[player] = 0;
+
             int[] PlayerInfo = new int[3];
             for (int i = 0; i < 12; ++i)
             {
@@ -254,8 +295,21 @@ class Server
             SendMessage(player, SendPacket);
         }
     }
+
+    private int Winner()
+    {
+        int winner = -1;
+        int MaxScore = 0;
+        for (int i = 0; i < MAXUSER; ++i)
+        {
+            if (m_UserScore[i] > MaxScore)
+            {
+                winner = i;
+            }
+        }
+
+        return winner;
+    }
     
 
 }
-
-

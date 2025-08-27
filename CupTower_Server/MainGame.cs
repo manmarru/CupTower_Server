@@ -1,10 +1,11 @@
 ﻿using System.Threading.Tasks;
+using Server;
 
 namespace MainApp;
 
 class MainApp
 {
-    static void Main()
+    static async Task Main()
     {
         Server.Server server = new Server.Server();
         server.Initialize();
@@ -15,13 +16,14 @@ class MainApp
             int userIndex = i;
             Thread thread = new Thread(() => server.Recv_N_Send(userIndex));
             Threads.Add(thread);
-            thread.IsBackground = true;
+            thread.IsBackground = false;
             thread.Start();
         }
 
-        System.Console.WriteLine("Press Any key to End Server");
-        Console.ReadLine(); // 아무거나 입력하면 종료
-        
-        server.Release();
+
+        // System.Console.WriteLine("Press Any key to End Server");
+        // Console.ReadLine(); // 아무거나 입력하면 종료
+
+        //server.Release();
     }
 }
