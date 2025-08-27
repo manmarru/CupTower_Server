@@ -135,11 +135,13 @@ class Server
                         {
                             ++m_Round;
                             System.Console.WriteLine($"         Round{m_Round} GameSet!");
+                            ++m_WinnerScore[RoundWinner()];
                             if (m_Round == ROUNDSIZE)
                             {
                                 System.Console.WriteLine("          EndGame!");
                                 SendPacket.Type = DATATYPE.DATATYPE_ENDGAME;
-                                SendPacket.DataSize = DATASIZE_NODATA;
+                                SendPacket.DataSize = sizeof(int);
+                                BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data, FinalWinner());
                                 BroadCasting(SendPacket);
                             }
                             else
@@ -296,20 +298,35 @@ class Server
         }
     }
 
-    private int Winner()
+    private int RoundWinner() // 동점이면 후턴이 이긴다
     {
-        int winner = -1;
-        int MaxScore = 0;
+        int winner = MAXUSER - 1;
+        int HighScore = 0;
         for (int i = 0; i < MAXUSER; ++i)
         {
-            if (m_UserScore[i] > MaxScore)
+            if (m_UserScore[i] > HighScore)
             {
                 winner = i;
+                HighScore = m_UserScore[i];
             }
         }
 
         return winner;
     }
-    
 
+    private int FinalWinner()
+    {
+        int winner = MAXUSER - 1;
+        int HighScore = 0;
+        for (int i = 0; i < MAXUSER; ++i)
+        {
+            if (m_WinnerScore[i] > HighScore)
+            {
+                winner = i;
+                HighScore = m_WinnerScore[i];
+            }
+        }
+
+        return winner;
+    }
 }
