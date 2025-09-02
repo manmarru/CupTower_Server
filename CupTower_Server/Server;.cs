@@ -7,7 +7,7 @@ namespace Server;
 
 enum DATATYPE
 {
-    DATATYPE_CHAT,
+    DATATYPE_DEBUG,
     DATATYPE_GAME,
     DATATYPE_TURN,
     DATATYPE_ENDGAME,
@@ -31,7 +31,7 @@ class Server
     public const int DATASIZE_NODATA = 0;
     public const int ROUNDSIZE = 2;
 
-    Socket m_Server;
+    Socket m_Server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
     Socket[] m_Clients = new Socket[MAXUSER];
 
     private object[] UserLock = new object[MAXUSER];
@@ -44,7 +44,6 @@ class Server
 
     public void Initialize()
     {
-        m_Server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         m_Server.Bind(new IPEndPoint(IPAddress.Any, 25565));
         m_Server.Listen(10);
 
@@ -66,7 +65,6 @@ class Server
 
             UserLock[i] = new object();
             m_Clients[i].Send(Temp, 4, SocketFlags.None);
-
         }
 
         Initialize_Table();
@@ -79,14 +77,14 @@ class Server
         byte[] Send = new byte[512];
         while (true)
         {
-            if (false == Recv(4, UserNum, RecvBuffer))
+            if (false == Recv(sizeof(int), UserNum, RecvBuffer))
                 return;
             SendPacket.Type = (DATATYPE)BinaryPrimitives.ReadInt32BigEndian(RecvBuffer);
             System.Console.WriteLine("===========================");
             System.Console.WriteLine(SendPacket.Type);
 
 
-            if (false == Recv(4, UserNum, RecvBuffer))
+            if (false == Recv(sizeof(int), UserNum, RecvBuffer))
                 return;
             SendPacket.DataSize = BinaryPrimitives.ReadInt32BigEndian(RecvBuffer);
             System.Console.WriteLine($"DataSize : {SendPacket.DataSize}");
@@ -97,7 +95,7 @@ class Server
 
             switch (SendPacket.Type)
             {
-                case DATATYPE.DATATYPE_CHAT:
+                case DATATYPE.DATATYPE_DEBUG:
                     {
                         string message = Encoding.UTF8.GetString(RecvBuffer, 0, SendPacket.DataSize);
                         System.Console.WriteLine(message);
@@ -123,14 +121,22 @@ class Server
                 case DATATYPE.DATATYPE_TURN:
                     {
                         int Msg = BinaryPrimitives.ReadInt32BigEndian(RecvBuffer);
-                        if (Msg == (int)DATA.DATA_SKIPTURN) // 그냥 턴종누른거면
+                        if (Msg == (int)DATA.DATA_SKIPTURN) // 턴 스킵 or 타임아웃
                         {
+                            m_SkipCount = 0;
+                            if (m_Turn != UserNum)
+                            {
+                                System.Console.WriteLine("Skip Error : Turn");
+                                continue;
+                            }
                             System.Console.WriteLine("skip Button");
                             NextTurn();
                             break;
                         }
+
                         System.Console.WriteLine("Unactable");
                         ++m_SkipCount;
+                        System.Console.WriteLine($"SkipCount : {m_SkipCount}");
                         if (m_SkipCount == MAXUSER)
                         {
                             ++m_Round;
@@ -146,12 +152,17 @@ class Server
                             }
                             else
                             {
+                                SendPacket.Type = DATATYPE.DATATYPE_GAMESET;
+                                SendPacket.DataSize = sizeof(int);
+                                BinaryPrimitives.WriteInt32BigEndian(SendPacket.Data, RoundWinner());
+                                BroadCasting(SendPacket);
+
                                 Initialize_Table();
                                 m_Turn = 9999;
                             }
                             m_SkipCount = 0;
-                            NextTurn();
                         }
+                        NextTurn();
                         break;
                     }
                 case DATATYPE.DATATYPE_ENDGAME: // 받고 꺼야되는거 맞다.
