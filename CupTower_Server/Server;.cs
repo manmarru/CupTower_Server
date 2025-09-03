@@ -25,7 +25,7 @@ struct PACKET
 
 class Server
 {
-    public const int MAXUSER = 1;
+    public const int MAXUSER = 2;
     public const int HEADERSIZE_DEFAULT = 8;
     public const int DATASIZE_GAMEACT = 8;
     public const int DATASIZE_NODATA = 0;
@@ -134,7 +134,7 @@ class Server
                             break;
                         }
 
-                        System.Console.WriteLine("Unactable");
+                        System.Console.WriteLine("          Unactable");
                         ++m_SkipCount;
                         System.Console.WriteLine($"SkipCount : {m_SkipCount}");
                         if (m_SkipCount == MAXUSER)
@@ -264,7 +264,7 @@ class Server
 
         // 턴 넘기기
         m_Turn = (m_Turn + 1) % MAXUSER;
-        System.Console.WriteLine($"Player {m_Turn} Turn");
+        System.Console.WriteLine($"Go to Player {m_Turn} Turn");
         SendPacket.Type = DATATYPE.DATATYPE_TURN;
         SendPacket.DataSize = 4;
         SendPacket.Data = new byte[SendPacket.DataSize];
