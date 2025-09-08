@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -25,7 +26,7 @@ struct PACKET
 
 class Server
 {
-    public const int MAXUSER = 2;
+    public const int MAXUSER = 3;
     public const int HEADERSIZE_DEFAULT = 8;
     public const int DATASIZE_GAMEACT = 8;
     public const int DATASIZE_NODATA = 0;
@@ -158,10 +159,12 @@ class Server
                                 BroadCasting(SendPacket);
 
                                 Initialize_Table();
-                                m_Turn = 9999;
+
+                                m_Turn = MAXUSER - 1;
                             }
                             m_SkipCount = 0;
                         }
+                        System.Console.WriteLine(m_Turn);
                         NextTurn();
                         break;
                     }
