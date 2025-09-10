@@ -1,6 +1,7 @@
 # CupTower_Server
-(클라이언트 프로젝트는 [https://github.com/manmarru/CupTower](https://github.com/manmarru/CupTower) 입니다.)  
+(클라이언트 프로젝트 코드는 [https://github.com/manmarru/CupTower](https://github.com/manmarru/CupTower) 입니다.)  
 
+[시연 영상](https://youtu.be/LJoUJH3Uyo0)  
 [프로젝트 개발 기록서](https://drive.google.com/file/d/1L8gsk_rO1SqeiQrtgzJS18Z3tA8TThwx/view?usp=drive_link)  
 CupTower 프로젝트에서 만들어서 사용한 서버입니다.  
 Server.cs에 정의된 MAXUSER 값을 조절해서 접속 인원을 조절할 수 있습니다. (1~3, 테스트용이 아니라면 3)  
